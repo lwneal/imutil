@@ -94,8 +94,11 @@ def show(
         elif len(pixels.shape) == 3 and pixels.shape[0] in (1, 3):
             pixels = pixels.transpose((1,2,0))
     elif hasattr(data, 'savefig'):
+        # Hack: Save it as a PNG, then load the PNG
         data.savefig('/tmp/plot.png')
         pixels = np.array(Image.open('/tmp/plot.png'))
+        # Discard the alpha channel, use RGB
+        pixels = pixels[:,:,:3]
     elif type(data).__name__ == 'AxesSubplot':
         data.get_figure().savefig('/tmp/plot.png')
         pixels = np.array(Image.open('/tmp/plot.png'))
