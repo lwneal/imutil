@@ -244,3 +244,5 @@ class VideoMaker(object):
     def finish(self):
         encode_video(self.filename)
 
+    def __del__(self):
+        self.finish()
