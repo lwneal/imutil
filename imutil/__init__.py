@@ -16,8 +16,8 @@ def get_font_file():
 
 
 # Input: Numpy array containing one or more images
-# Output: JPG encoded image bytes
-def encode_jpg(pixels, resize_to=None):
+# Output: JPG encoded image bytes (or an alternative format if specified)
+def encode_jpg(pixels, resize_to=None, img_format='JPEG'):
     while len(pixels.shape) > 3:
         pixels = combine_images(pixels)
     # Convert to RGB to avoid "Cannot handle this data type"
@@ -27,7 +27,7 @@ def encode_jpg(pixels, resize_to=None):
     if resize_to:
         img = img.resize(resize_to)
     fp = BytesIO()
-    img.save(fp, format='JPEG')
+    img.save(fp, format=img_format)
     return fp.getvalue()
 
 
@@ -159,7 +159,8 @@ def show(
     # Write the file itself
     ensure_directory_exists(filename)
     with open(filename, 'wb') as fp:
-        fp.write(encode_jpg(pixels))
+        save_format = 'PNG' if filename.endswith('.png') else 'JPEG'
+        fp.write(encode_jpg(pixels, img_format=save_format))
         fp.flush()
 
     should_show = os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat')
