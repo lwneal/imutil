@@ -193,21 +193,42 @@ def encode_video(video_filename):
     output_filename = video_filename.replace('mjpeg', 'mp4')
     print('Encoding video {}'.format(video_filename))
     cmd = 'ffmpeg -hide_banner -nostdin -loglevel panic -y -i {0} {1} && rm {0}'.format(video_filename, output_filename)
+    # TODO: security lol
     os.system(cmd)
 
 
-def combine_images(generated_images):
-    num = generated_images.shape[0]
-    width = int(math.sqrt(num))
-    height = int(math.ceil(float(num)/width))
-    shape = generated_images.shape[1:]
-    image = np.zeros((height*shape[0], width*shape[1], shape[2]), dtype=generated_images.dtype)
-    for index, img in enumerate(generated_images):
-        i = int(index/width)
-        j = index % width
-        a0, a1 = i*shape[0], (i+1)*shape[0]
-        b0, b1 = j*shape[1], (j+1)*shape[1]
-        image[a0:a1, b0:b1] = img
+# Input: A sequence of images, where images[0] is the first image
+# Output: A single image, containing the input images tiled together
+# Each input image can be 2-dim monochrome, 3-dim rgb, or more
+# Examples:
+# Input (4 x 256 x 256 x 3) outputs (512 x 512 x 3)
+# Input (4 x 256 x 256) outputs (512 x 512)
+# Input (3 x 256 x 256 x 3) outputs (512 x 512 x 3)
+# Input (100 x 64 x 64) outputs (640 x 640)
+# Input (99 x 64 x 64) outputs (640 x 640) (with one blank space)
+# Input (100 x 64 x 64 x 17) outputs (640 x 640 x 17)
+def combine_images(images, stack_width=None):
+    num_images = images.shape[0]
+    input_height = images.shape[1]
+    input_width = images.shape[2]
+    optional_dimensions = images.shape[3:]
+
+    if not stack_width:
+        stack_width = int(math.sqrt(num_images))
+    stack_height = int(math.ceil(float(num_images) / stack_width))
+
+    output_width = stack_width * input_width
+    output_height = stack_height * input_height
+
+    output_shape = (output_height, output_width) + optional_dimensions
+    image = np.zeros(output_shape, dtype=images.dtype)
+
+    for idx in range(num_images):
+        i = int(index / stack_width)
+        j = index % stack_width
+        a0, a1 = i * input_height, (i+1) * input_height
+        b0, b1 = j * input_width, (j+1) * input_width
+        image[a0:a1, b0:b1] = images[idx]
     return image
 
 
