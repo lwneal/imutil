@@ -268,3 +268,20 @@ class VideoMaker(object):
 
     def __del__(self):
         self.finish()
+
+
+def text(pixels, text, x=0, y=0, font_size=12, color=(0,0,0,255)):
+    from PIL import Image, ImageFont, ImageDraw
+    pixels = show(pixels, display=False, save=False, return_pixels=True)
+    pixels = (pixels * 255).astype(np.uint8)
+    # Hack: convert monochrome to RGB
+    if pixels.shape[-1] == 1:
+        pixels = np.stack([pixels.squeeze(), pixels.squeeze(), pixels.squeeze()], axis=-1)
+    img = Image.fromarray(pixels)
+    font_file = get_font_file()
+    font = ImageFont.truetype(font_file, font_size)
+    draw = ImageDraw.Draw(img)
+    textsize = draw.textsize(text, font=font)
+    draw.multiline_text((x,y), text, font=font, fill=color)
+    pixels = np.array(img)
+    return pixels
