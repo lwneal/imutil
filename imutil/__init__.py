@@ -224,8 +224,8 @@ def combine_images(images, stack_width=None):
     image = np.zeros(output_shape, dtype=images.dtype)
 
     for idx in range(num_images):
-        i = int(index / stack_width)
-        j = index % stack_width
+        i = int(idx / stack_width)
+        j = idx % stack_width
         a0, a1 = i * input_height, (i+1) * input_height
         b0, b1 = j * input_width, (j+1) * input_width
         image[a0:a1, b0:b1] = images[idx]
