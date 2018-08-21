@@ -189,10 +189,14 @@ def ensure_directory_exists(filename):
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
 
-def encode_video(video_filename):
+def encode_video(video_filename, loopy=False):
     output_filename = video_filename.replace('mjpeg', 'mp4')
     print('Encoding video {}'.format(video_filename))
-    cmd = 'ffmpeg -hide_banner -nostdin -loglevel panic -y -i {0} {1} && rm {0}'.format(video_filename, output_filename)
+    # TODO: Tokenize, use subprocess, validate filenames and "&& rm output" in Python
+    cmd = 'ffmpeg -hide_banner -nostdin -loglevel panic -y -i {0} '.format(video_filename)
+    if loopy:
+        cmd += '-filter_complex "[0]reverse[r];[0][r]concat" '
+    cmd += '{} && rm {}'.format(output_filename, video_filename)
     # TODO: security lol
     os.system(cmd)
 
@@ -247,9 +251,14 @@ def draw_box(img, box, color=1.0):
     img[y1,x0:x1] = color
 
 
-class VideoMaker(object):
+class VideoMaker():
+    loopy = False
+
     def __init__(self, filename):
         self.filename = filename
+        self.finished = False
+        if self.filename.endswith('.mp4'):
+            self.filename = self.filename[:-4]
         if not self.filename.endswith('mjpeg'):
             self.filename = self.filename + '.mjpeg'
 
@@ -257,6 +266,8 @@ class VideoMaker(object):
                     frame,
                     font_size=12,
                     **kwargs):
+        if self.finished:
+            raise ValueError("Video is finished, cannot write frame")
         show(frame,
             video_filename=self.filename,
             font_size=font_size,
@@ -264,10 +275,17 @@ class VideoMaker(object):
             **kwargs)
 
     def finish(self):
-        encode_video(self.filename)
+        if not self.finished:
+            encode_video(self.filename, loopy=self.loopy)
+        self.finished = True
 
     def __del__(self):
-        self.finish()
+        if not self.finished:
+            self.finish()
+
+
+class VideoLoop(VideoMaker):
+    loopy = True
 
 
 def text(pixels, text, x=0, y=0, font_size=12, color=(0,0,0,255)):
