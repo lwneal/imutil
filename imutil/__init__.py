@@ -54,14 +54,38 @@ def decode_jpg(jpg, crop_to_box=None, resize_to=(224,224), pil=False):
         return img
     return np.array(img).astype(float)
 
+
 figure = []
 def add_to_figure(data):
     figure.append(data)
+
 
 def show_figure(**kwargs):
     global figure
     show(np.array(figure), **kwargs)
     figure = []
+
+
+def convert_fig_to_pixels(matplot_fig):
+    # Hack: Write entire figure to file, then re-load it
+    # Could be done faster in memory
+    with tempfile.NamedTemporaryFile(suffix='.png') as tmp:
+        matplot_fig.savefig(tmp.name)
+        pixels = np.array(Image.open(tmp.name))
+    # Discard the alpha channel, use RGB
+    return pixels[:,:,:3]
+
+
+def convert_pytorch_tensor_to_pixels(data):
+    if data.requires_grad:
+        data = data.detach()
+    pixels = data.cpu().numpy()
+    if len(pixels.shape) == 4:
+        pixels = pixels.transpose((0,2,3,1))
+    elif len(pixels.shape) == 3 and pixels.shape[0] in (1, 3):
+        pixels = pixels.transpose((1,2,0))
+    return pixels
+
 
 # Swiss-army knife for putting an image on the screen
 # Accepts numpy arrays, PIL Image objects, or jpgs
@@ -85,23 +109,11 @@ def show(
     elif type(data) == Image.Image:
         pixels = np.array(data)
     elif type(data).__name__ in ['FloatTensor', 'Tensor', 'Variable']:
-        # Pytorch tensor
-        if data.requires_grad:
-            data = data.detach()
-        pixels = data.cpu().numpy()
-        if len(pixels.shape) == 4:
-            pixels = pixels.transpose((0,2,3,1))
-        elif len(pixels.shape) == 3 and pixels.shape[0] in (1, 3):
-            pixels = pixels.transpose((1,2,0))
+        pixels = convert_pytorch_tensor_to_pixels(data)
     elif hasattr(data, 'savefig'):
-        # Hack: Save it as a PNG, then load the PNG
-        data.savefig('/tmp/plot.png')
-        pixels = np.array(Image.open('/tmp/plot.png'))
-        # Discard the alpha channel, use RGB
-        pixels = pixels[:,:,:3]
+        pixels = convert_fig_to_pixels(data)
     elif type(data).__name__ == 'AxesSubplot':
-        data.get_figure().savefig('/tmp/plot.png')
-        pixels = np.array(Image.open('/tmp/plot.png'))
+        pixels = convert_fig_to_pixels(data.get_figure())
     elif hasattr(data, 'startswith'):
         pixels = decode_jpg(data, resize_to=resize_to)
     else:
