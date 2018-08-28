@@ -164,14 +164,14 @@ def show(
 
     # Set a default filename if one does not exist
     if save and filename is None and video_filename is None:
-        filename = '{}.jpg'.format(int(time.time() * 1000))
+        output_filename = '{}.jpg'.format(int(time.time() * 1000))
     elif filename is None:
-        filename = tempfile.NamedTemporaryFile(suffix='.jpg').name
+        output_filename = tempfile.NamedTemporaryFile(suffix='.jpg').name
 
     # Write the file itself
-    ensure_directory_exists(filename)
-    with open(filename, 'wb') as fp:
-        save_format = 'PNG' if filename.endswith('.png') else 'JPEG'
+    ensure_directory_exists(output_filename)
+    with open(output_filename, 'wb') as fp:
+        save_format = 'PNG' if output_filename.endswith('.png') else 'JPEG'
         fp.write(encode_jpg(pixels, img_format=save_format))
         fp.flush()
 
@@ -179,15 +179,18 @@ def show(
     if display and should_show:
         print('\n' * 4)
         print('\033[4F')
-        subprocess.check_call(['imgcat', filename])
+        subprocess.check_call(['imgcat', output_filename])
         print('\033[4B')
     elif verbose:
-        print("Saved image size {} as {}".format(pixels.shape, filename))
+        print("Saved image size {} as {}".format(pixels.shape, output_filename))
 
     # Output JPG files can be collected into a video with ffmpeg -i *.jpg
     if video_filename:
         ensure_directory_exists(video_filename)
         open(video_filename, 'ab').write(encode_jpg(pixels))
+
+    if filename is None:
+        os.remove(output_filename)
 
     if return_pixels:
         return pixels
