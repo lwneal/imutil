@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='imutil',
-    version='0.1.9',
+    version='0.1.10',
     description='Swiss army knife for displaying images',
     author='Larry Neal',
     author_email='nealla@lwneal.com',
@@ -15,4 +15,9 @@ setup(name='imutil',
         'numpy',
         'Pillow',
     ],
+    package_data={
+        'imutil': [
+            'DejaVuSansMono.ttf',
+        ]
+    },
 )
