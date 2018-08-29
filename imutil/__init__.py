@@ -5,6 +5,7 @@ import time
 import subprocess
 import pathlib
 from distutils import spawn
+import collections
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
@@ -12,7 +13,7 @@ from io import BytesIO
 
 # A general-purpose function for turning data into an image on the screen
 # If imgcat is installed and IMUTIL_SHOW=1 then the image will be
-# displayed on-screen in the terminal
+# displayed inline in the terminal
 def show(
         data,
         verbose=False,
@@ -34,9 +35,13 @@ def show(
     if resize_to:
         resize_width, resize_height = resize_to
 
-    pixels = load(data)
+    # Convert ANY input into a np.array
+    pixels = load(data, verbose=verbose)
+    assert type(pixels) == np.ndarray
 
+    # Convert ANY np.array to shape (height, width, 3)
     pixels = reshape_ndarray_into_rgb(pixels)
+    assert len(pixels.shape) == 3
 
     # Normalize pixel intensities
     if normalize_color and pixels.max() > pixels.min():
@@ -85,7 +90,7 @@ def show(
 # A general-purpose image loading function
 # Accepts numpy arrays, PIL Image objects, or jpgs
 # Numpy arrays can consist of multiple images, which will be collated
-def load(data):
+def load(data, verbose=False):
     # Munge data to allow input filenames, pixels, PIL images, etc
     if type(data) == type(np.array([])):
         pixels = data
@@ -100,7 +105,8 @@ def load(data):
     elif hasattr(data, 'startswith'):
         pixels = decode_image_from_string(data)
     else:
-        print('imutil.load() handling unknown type {}'.format(type(data)))
+        if verbose:
+            print('imutil.load() handling unknown type {}'.format(type(data)))
         pixels = np.array(data)
     return pixels
 
@@ -350,6 +356,7 @@ class VideoLoop(VideoMaker):
     loopy = True
 
 
+# An easy but inefficient way to draw text onto an image
 def text(pixels, text, x=0, y=0, font_size=12, color=(0,0,0,255)):
     from PIL import Image, ImageFont, ImageDraw
     pixels = show(pixels, display=False, save=False, return_pixels=True)
