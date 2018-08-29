@@ -229,7 +229,9 @@ def draw_text_caption(pixels, caption, font_size=12):
     height, width, channels = pixels.shape
     font = ImageFont.truetype(get_font_file(), font_size)
     _, caption_height = font.getsize(caption)
-    new_height = height + caption_height + 1
+
+    # Scale height to the nearest multiple of 4 for libx264 et al
+    new_height = ((height + caption_height + 1) // 4) * 4
 
     new_pixels = np.zeros((new_height, width, channels), dtype=np.uint8)
     new_pixels[-height:] = pixels
