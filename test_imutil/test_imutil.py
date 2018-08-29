@@ -64,7 +64,7 @@ class TestImutil(unittest.TestCase):
 
         # show(display=True) with IMUTIL_SHOW set should run imgcat if available
         os.environ['IMUTIL_SHOW'] = '1'
-        imutil.show(x, display=True)
+        imutil.show(x, display=True, caption='HELLO PIXELS')
         # assert imgcat was called
         os.environ['IMUTIL_SHOW'] = ''
 

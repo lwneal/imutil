@@ -21,6 +21,7 @@ def show(
         filename=None,
         box=None,
         video_filename=None,
+        resize_to=None,
         resize_height=None,
         resize_width=None,
         normalize_color=True,
@@ -30,6 +31,8 @@ def show(
     # Handle special parameter combinations
     if video_filename:
         save = False
+    if resize_to:
+        resize_width, resize_height = resize_to
 
     pixels = load(data)
 
@@ -47,8 +50,9 @@ def show(
     if box is not None:
         draw_box(pixels, box)
 
+    # Draw a text caption above the image
     if caption is not None:
-        pixels = draw_text_caption(pixels)
+        pixels = draw_text_caption(pixels, caption, font_size)
 
     # Set a default filename if one does not exist
     if filename is None:
@@ -115,6 +119,7 @@ def convert_pytorch_tensor_to_pixels(data):
     if data.requires_grad:
         data = data.detach()
     pixels = data.cpu().numpy()
+    # Special case: Assume Pytorch tensors will be BCHW, convert to BHWC
     if len(pixels.shape) == 4:
         pixels = pixels.transpose((0,2,3,1))
     elif len(pixels.shape) == 3 and pixels.shape[0] in (1, 3):
@@ -210,19 +215,26 @@ def resize(pixels, resize_height, resize_width):
     return pixels
 
 
-def draw_text_caption(pixels):
-    # Draw text into the image
-    pixels = pixels.squeeze()
-    img = Image.fromarray(pixels.astype('uint8'))
+# pixels: np.array of shape (height, width, 3)
+# caption: string, may contain newlines
+# font_size: integer
+# output: np.array of shape (height + caption_height, width, 3)
+def draw_text_caption(pixels, caption, font_size=12):
+    height, width, channels = pixels.shape
     font = ImageFont.truetype(get_font_file(), font_size)
+    _, caption_height = font.getsize(caption)
+    new_height = height + caption_height + 1
+
+    new_pixels = np.zeros((new_height, width, channels), dtype=np.uint8)
+    new_pixels[-height:] = pixels
+    img = Image.fromarray(new_pixels)
+
     draw = ImageDraw.Draw(img)
     textsize = draw.textsize(caption, font=font)
-    # TODO: issues with fill
-    #draw.rectangle([(0, 0), textsize], fill=(0,0,0,128))
-    draw.rectangle([(0, 0), textsize])
-    #draw.multiline_text((0,0), caption, font=font, fill=(255,255,255))
+    draw.rectangle([(0, 0), textsize], fill=(0,0,0,128))
     draw.multiline_text((0,0), caption, font=font)
     pixels = np.array(img)
+    return pixels
 
 
 # An included default monospace font
@@ -232,15 +244,13 @@ def get_font_file():
 
 # Input: Numpy array containing one or more images
 # Output: JPG encoded image bytes (or an alternative format if specified)
-def encode_image(pixels, resize_to=None, img_format='JPEG'):
+def encode_image(pixels, img_format='JPEG'):
     while len(pixels.shape) > 3:
         pixels = combine_images(pixels)
     # Convert to RGB to avoid "Cannot handle this data type"
     if pixels.shape[-1] < 3:
         pixels = np.repeat(pixels, 3, axis=-1)
     img = Image.fromarray(pixels.astype(np.uint8))
-    if resize_to:
-        img = img.resize(resize_to)
     fp = BytesIO()
     img.save(fp, format=img_format)
     return fp.getvalue()
