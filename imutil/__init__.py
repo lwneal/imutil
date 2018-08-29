@@ -103,6 +103,10 @@ def show(
         caption=None,
         font_size=16,
         return_pixels=False):
+    # Handle special parameter combinations
+    if video_filename:
+        save = False
+
     # Munge data to allow input filenames, pixels, PIL images, etc
     if type(data) == type(np.array([])):
         pixels = data
@@ -163,34 +167,27 @@ def show(
         pixels = np.array(img)
 
     # Set a default filename if one does not exist
-    if save and filename is None and video_filename is None:
-        output_filename = '{}.jpg'.format(int(time.time() * 1000))
-    elif filename is None:
-        output_filename = tempfile.NamedTemporaryFile(suffix='.jpg').name
+    if filename is None:
+        filename = '{}.jpg'.format(int(time.time() * 1000))
 
     # Write the file itself
-    ensure_directory_exists(output_filename)
-    with open(output_filename, 'wb') as fp:
-        save_format = 'PNG' if output_filename.endswith('.png') else 'JPEG'
+    ensure_directory_exists(filename)
+    with open(filename, 'wb') as fp:
+        save_format = 'PNG' if filename.endswith('.png') else 'JPEG'
         fp.write(encode_jpg(pixels, img_format=save_format))
         fp.flush()
 
-    should_show = os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat')
-    if display and should_show:
-        print('\n' * 4)
-        print('\033[4F')
-        subprocess.check_call(['imgcat', output_filename])
-        print('\033[4B')
-    elif verbose:
-        print("Saved image size {} as {}".format(pixels.shape, output_filename))
+    if display:
+        display_image_on_screen(filename)
 
     # Output JPG files can be collected into a video with ffmpeg -i *.jpg
     if video_filename:
         ensure_directory_exists(video_filename)
-        open(video_filename, 'ab').write(encode_jpg(pixels))
+        with open(video_filename, 'ab') as fp:
+            fp.write(encode_jpg(pixels))
 
-    if filename is None:
-        os.remove(output_filename)
+    if not save:
+        os.remove(filename)
 
     if return_pixels:
         return pixels
@@ -202,6 +199,16 @@ def ensure_directory_exists(filename):
     # Perform a mkdir -p on the rest of the path
     path = '/'.join(tokens)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
+
+def display_image_on_screen(filename):
+    should_show = os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat')
+    if not should_show:
+        return
+    print('\n' * 4)
+    print('\033[4F')
+    subprocess.check_call(['imgcat', filename])
+    print('\033[4B')
 
 
 def encode_video(video_filename, loopy=False):

@@ -3,6 +3,8 @@ import imutil
 import os
 import numpy as np
 
+EXTENSIONS = ['.jpg', '.png', '.mjpeg', '.mp4']
+
 class TestImutil(unittest.TestCase):
 
     def setUp(self):
@@ -37,15 +39,24 @@ class TestImutil(unittest.TestCase):
             x += 10.
             imutil.show(x, video_filename='test_output.mjpeg')
 
+    def test_display(self):
+        x = np.random.uniform(0, 1, size=(128,128))
+
+        # show(display=False) should save a jpg in the cwd
+        listing_before = os.listdir('.')
+        imutil.show(x, display=False)
+        listing_after = os.listdir('.')
+        assert len(listing_after) == len(listing_before) + 1
+
+        # show(display=True) should save a jpg, and also call imgcat if available
+        imutil.show(x, display=True)
+
 
 def cleanup():
     files = os.listdir('.')
-    if 'test_output.jpg' in files:
-        os.remove('test_output.jpg')
-    if 'test_output.png' in files:
-        os.remove('test_output.png')
-    if 'test_output.mjpeg' in files:
-        os.remove('test_output.mjpeg')
+    for f in files:
+        if any(f.endswith(ext) for ext in EXTENSIONS):
+            os.remove(f)
 
 
 if __name__ == '__main__':
