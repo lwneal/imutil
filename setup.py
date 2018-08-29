@@ -7,6 +7,7 @@ setup(name='imutil',
     description='Swiss army knife for displaying images',
     author='Larry Neal',
     author_email='nealla@lwneal.com',
+    url="https://github.com/lwneal/imutil",
     packages=[
         'imutil',
     ],
