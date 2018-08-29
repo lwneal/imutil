@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='imutil',
-    version='0.1.8',
+    version='0.1.9',
     description='Swiss army knife for displaying images',
     author='Larry Neal',
     author_email='nealla@lwneal.com',
