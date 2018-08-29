@@ -10,60 +10,95 @@ from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
 
 
-# An included default monospace font
-def get_font_file():
-    return os.path.join(os.path.dirname(__file__), 'DejaVuSansMono.ttf')
+# A general-purpose function for turning data into an image on the screen
+# If imgcat is installed and IMUTIL_SHOW=1 then the image will be
+# displayed on-screen in the terminal
+def show(
+        data,
+        verbose=False,
+        display=True,
+        save=True,
+        filename=None,
+        box=None,
+        video_filename=None,
+        resize_height=None,
+        resize_width=None,
+        normalize_color=True,
+        caption=None,
+        font_size=16,
+        return_pixels=False):
+    # Handle special parameter combinations
+    if video_filename:
+        save = False
+
+    pixels = load(data)
+
+    pixels = reshape_ndarray_into_rgb(pixels)
+
+    # Normalize pixel intensities
+    if normalize_color and pixels.max() > pixels.min():
+        pixels = (pixels - pixels.min()) * 255. / (pixels.max() - pixels.min())
+
+    # Resize image to desired shape
+    if resize_height or resize_width:
+        pixels = resize(pixels, resize_height, resize_width)
+
+    # Draw a bounding box onto the image
+    if box is not None:
+        draw_box(pixels, box)
+
+    if caption is not None:
+        pixels = draw_text_caption(pixels)
+
+    # Set a default filename if one does not exist
+    if filename is None:
+        filename = '{}.jpg'.format(int(time.time() * 1000))
+
+    # Write the file itself
+    ensure_directory_exists(filename)
+    with open(filename, 'wb') as fp:
+        save_format = 'PNG' if filename.endswith('.png') else 'JPEG'
+        fp.write(encode_image(pixels, img_format=save_format))
+        fp.flush()
+
+    if display:
+        display_image_on_screen(filename)
+
+    # The MJPEG format is a concatenation of JPEG files, and can be converted
+    # into another format with eg. ffmpeg -i frames.mjpeg output.mp4
+    if video_filename:
+        ensure_directory_exists(video_filename)
+        with open(video_filename, 'ab') as fp:
+            fp.write(encode_image(pixels, img_format='JPEG'))
+
+    if not save:
+        os.remove(filename)
+
+    if return_pixels:
+        return pixels
 
 
-# Input: Numpy array containing one or more images
-# Output: JPG encoded image bytes (or an alternative format if specified)
-def encode_jpg(pixels, resize_to=None, img_format='JPEG'):
-    while len(pixels.shape) > 3:
-        pixels = combine_images(pixels)
-    # Convert to RGB to avoid "Cannot handle this data type"
-    if pixels.shape[-1] < 3:
-        pixels = np.repeat(pixels, 3, axis=-1)
-    img = Image.fromarray(pixels.astype(np.uint8))
-    if resize_to:
-        img = img.resize(resize_to)
-    fp = BytesIO()
-    img.save(fp, format=img_format)
-    return fp.getvalue()
-
-
-# Input: Filename, or JPG bytes
-# Output: Numpy array containing images
-def decode_jpg(jpg, crop_to_box=None, resize_to=(224,224), pil=False):
-    if jpg.startswith('\xFF\xD8'):
-        # Input is a JPG buffer
-        img = Image.open(BytesIO(jpg))
+# A general-purpose image loading function
+# Accepts numpy arrays, PIL Image objects, or jpgs
+# Numpy arrays can consist of multiple images, which will be collated
+def load(data):
+    # Munge data to allow input filenames, pixels, PIL images, etc
+    if type(data) == type(np.array([])):
+        pixels = data
+    elif type(data) == Image.Image:
+        pixels = np.array(data)
+    elif type(data).__name__ in ['FloatTensor', 'Tensor', 'Variable']:
+        pixels = convert_pytorch_tensor_to_pixels(data)
+    elif hasattr(data, 'savefig'):
+        pixels = convert_fig_to_pixels(data)
+    elif type(data).__name__ == 'AxesSubplot':
+        pixels = convert_fig_to_pixels(data.get_figure())
+    elif hasattr(data, 'startswith'):
+        pixels = decode_image_from_string(data)
     else:
-        # Input is a filename
-        img = Image.open(jpg)
-
-    img = img.convert('RGB')
-    if crop_to_box:
-        # Crop to bounding box
-        x0, x1, y0, y1 = crop_to_box
-        width, height = img.size
-        absolute_box = (x0 * width, y0 * height, x1 * width, y1 * height)
-        img = img.crop((int(i) for i in absolute_box))
-    if resize_to:
-        img = img.resize(resize_to)
-    if pil:
-        return img
-    return np.array(img).astype(float)
-
-
-figure = []
-def add_to_figure(data):
-    figure.append(data)
-
-
-def show_figure(**kwargs):
-    global figure
-    show(np.array(figure), **kwargs)
-    figure = []
+        print('imutil.load() handling unknown type {}'.format(type(data)))
+        pixels = np.array(data)
+    return pixels
 
 
 def convert_fig_to_pixels(matplot_fig):
@@ -87,140 +122,45 @@ def convert_pytorch_tensor_to_pixels(data):
     return pixels
 
 
-# Swiss-army knife for putting an image on the screen
-# Accepts numpy arrays, PIL Image objects, or jpgs
-# Numpy arrays can consist of multiple images, which will be collated
-def show(
-        data,
-        verbose=False,
-        display=True,
-        save=True,
-        filename=None,
-        box=None,
-        video_filename=None,
-        resize_to=None,
-        normalize_color=True,
-        caption=None,
-        font_size=16,
-        return_pixels=False):
-    # Handle special parameter combinations
-    if video_filename:
-        save = False
-
-    # Munge data to allow input filenames, pixels, PIL images, etc
-    if type(data) == type(np.array([])):
-        pixels = data
-    elif type(data) == Image.Image:
-        pixels = np.array(data)
-    elif type(data).__name__ in ['FloatTensor', 'Tensor', 'Variable']:
-        pixels = convert_pytorch_tensor_to_pixels(data)
-    elif hasattr(data, 'savefig'):
-        pixels = convert_fig_to_pixels(data)
-    elif type(data).__name__ == 'AxesSubplot':
-        pixels = convert_fig_to_pixels(data.get_figure())
-    elif hasattr(data, 'startswith'):
-        pixels = decode_jpg(data, resize_to=resize_to)
+# Input: Filename, or JPG bytes
+# Output: Numpy array containing images
+def decode_image_from_string(data):
+    if data.startswith('\xFF\xD8'):
+        # Input is a JPG buffer
+        img = Image.open(BytesIO(data))
     else:
-        print('imutil.show() handling unknown type {}'.format(type(data)))
-        pixels = np.array(data)
+        # Input is a filename
+        img = Image.open(data)
 
-    # Split non-RGB images into sets of monochrome images
-    if pixels.shape[-1] not in (1, 3):
+    img = img.convert('RGB')
+    return np.array(img).astype(float)
+
+
+# pixels: np.array of ANY nonzero dimensionality
+# Output: np.array of shape (height, width, 3)
+def reshape_ndarray_into_rgb(pixels):
+    # Special cases: low-dimensional inputs
+    if len(pixels.shape) == 1:
+        # One-dimensional input: convert to (1 x width x 1)
+        pixels = np.expand_dims(pixels, axis=0)
+        pixels = np.expand_dims(pixels, axis=-1)
+    elif len(pixels.shape) == 2:
+        # Two-dimensional input: convert to (height x width x 1)
         pixels = np.expand_dims(pixels, axis=-1)
 
-    # Expand matrices to monochrome images
-    while len(pixels.shape) < 3:
+    n_channels = pixels.shape[-1]
+    if n_channels == 1:
+        # Convert monochrome to RGB by broadcasting luma
+        pixels = np.repeat(pixels, repeats=3, axis=-1)
+    elif n_channels != 3:
+        # Convert anything else to RGB by making each channel a separate image
         pixels = np.expand_dims(pixels, axis=-1)
+        pixels = np.repeat(pixels, repeats=3, axis=-1)
 
-    # Reduce lists of images to a single image
+    # Combine lists of images into a single tiled image
     while len(pixels.shape) > 3:
         pixels = combine_images(pixels)
-
-    # Normalize pixel intensities
-    if normalize_color and pixels.max() > pixels.min():
-        pixels = (pixels - pixels.min()) * 255. / (pixels.max() - pixels.min())
-
-    # Resize image to desired shape
-    if resize_to:
-        if pixels.shape[-1] == 1:
-            pixels = pixels.repeat(3, axis=-1)
-        img = Image.fromarray(pixels.astype('uint8'))
-        img = img.resize(resize_to)
-        pixels = np.array(img)
-
-    # Draw a bounding box onto the image
-    if box is not None:
-        draw_box(pixels, box)
-
-    # Draw text into the image
-    if caption is not None:
-        pixels = pixels.squeeze()
-        img = Image.fromarray(pixels.astype('uint8'))
-        font = ImageFont.truetype(get_font_file(), font_size)
-        draw = ImageDraw.Draw(img)
-        textsize = draw.textsize(caption, font=font)
-        # TODO: issues with fill
-        #draw.rectangle([(0, 0), textsize], fill=(0,0,0,128))
-        draw.rectangle([(0, 0), textsize])
-        #draw.multiline_text((0,0), caption, font=font, fill=(255,255,255))
-        draw.multiline_text((0,0), caption, font=font)
-        pixels = np.array(img)
-
-    # Set a default filename if one does not exist
-    if filename is None:
-        filename = '{}.jpg'.format(int(time.time() * 1000))
-
-    # Write the file itself
-    ensure_directory_exists(filename)
-    with open(filename, 'wb') as fp:
-        save_format = 'PNG' if filename.endswith('.png') else 'JPEG'
-        fp.write(encode_jpg(pixels, img_format=save_format))
-        fp.flush()
-
-    if display:
-        display_image_on_screen(filename)
-
-    # Output JPG files can be collected into a video with ffmpeg -i *.jpg
-    if video_filename:
-        ensure_directory_exists(video_filename)
-        with open(video_filename, 'ab') as fp:
-            fp.write(encode_jpg(pixels))
-
-    if not save:
-        os.remove(filename)
-
-    if return_pixels:
-        return pixels
-
-
-def ensure_directory_exists(filename):
-    # Assume whatever comes after the last / is the filename
-    tokens = filename.split('/')[:-1]
-    # Perform a mkdir -p on the rest of the path
-    path = '/'.join(tokens)
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-
-
-def display_image_on_screen(filename):
-    should_show = os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat')
-    if not should_show:
-        return
-    print('\n' * 4)
-    print('\033[4F')
-    subprocess.check_call(['imgcat', filename])
-    print('\033[4B')
-
-
-def encode_video(video_filename, loopy=False):
-    output_filename = video_filename.replace('mjpeg', 'mp4')
-    print('Encoding video {}'.format(video_filename))
-    # TODO: Tokenize, use subprocess, validate filenames and "&& rm output" in Python
-    cmd = 'ffmpeg -hide_banner -nostdin -loglevel panic -y -i {0} '.format(video_filename)
-    if loopy:
-        cmd += '-filter_complex "[0]reverse[r];[0][r]concat" '
-    cmd += '{} && rm {}'.format(output_filename, video_filename)
-    # TODO: security lol
-    os.system(cmd)
+    return pixels
 
 
 # Input: A sequence of images, where images[0] is the first image
@@ -256,6 +196,96 @@ def combine_images(images, stack_width=None):
         b0, b1 = j * input_width, (j+1) * input_width
         image[a0:a1, b0:b1] = images[idx]
     return image
+
+# pixels: np.array of shape (height, width, 3)
+def resize(pixels, resize_height, resize_width):
+    current_height, current_width, channels = pixels.shape
+    if resize_height is None:
+        resize_height = current_height
+    if resize_width is None:
+        resize_width = current_width
+    img = Image.fromarray((pixels * 255).astype('uint8'))
+    img = img.resize((resize_width, resize_height))
+    pixels = np.array(img).astype(float) / 255.
+    return pixels
+
+
+def draw_text_caption(pixels):
+    # Draw text into the image
+    pixels = pixels.squeeze()
+    img = Image.fromarray(pixels.astype('uint8'))
+    font = ImageFont.truetype(get_font_file(), font_size)
+    draw = ImageDraw.Draw(img)
+    textsize = draw.textsize(caption, font=font)
+    # TODO: issues with fill
+    #draw.rectangle([(0, 0), textsize], fill=(0,0,0,128))
+    draw.rectangle([(0, 0), textsize])
+    #draw.multiline_text((0,0), caption, font=font, fill=(255,255,255))
+    draw.multiline_text((0,0), caption, font=font)
+    pixels = np.array(img)
+
+
+# An included default monospace font
+def get_font_file():
+    return os.path.join(os.path.dirname(__file__), 'DejaVuSansMono.ttf')
+
+
+# Input: Numpy array containing one or more images
+# Output: JPG encoded image bytes (or an alternative format if specified)
+def encode_image(pixels, resize_to=None, img_format='JPEG'):
+    while len(pixels.shape) > 3:
+        pixels = combine_images(pixels)
+    # Convert to RGB to avoid "Cannot handle this data type"
+    if pixels.shape[-1] < 3:
+        pixels = np.repeat(pixels, 3, axis=-1)
+    img = Image.fromarray(pixels.astype(np.uint8))
+    if resize_to:
+        img = img.resize(resize_to)
+    fp = BytesIO()
+    img.save(fp, format=img_format)
+    return fp.getvalue()
+
+
+figure = []
+def add_to_figure(data):
+    figure.append(data)
+
+
+def show_figure(**kwargs):
+    global figure
+    show(np.array(figure), **kwargs)
+    figure = []
+
+
+def ensure_directory_exists(filename):
+    # Assume whatever comes after the last / is the filename
+    tokens = filename.split('/')[:-1]
+    # Perform a mkdir -p on the rest of the path
+    path = '/'.join(tokens)
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
+
+def display_image_on_screen(filename):
+    should_show = os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat')
+    if not should_show:
+        return
+    print('\n' * 4)
+    print('\033[4F')
+    subprocess.check_call(['imgcat', filename])
+    print('\033[4B')
+
+
+def encode_video(video_filename, loopy=False):
+    output_filename = video_filename.replace('mjpeg', 'mp4')
+    print('Encoding video {}'.format(video_filename))
+    # TODO: Tokenize, use subprocess, validate filenames and "&& rm output" in Python
+    cmd = 'ffmpeg -hide_banner -nostdin -loglevel panic -y -i {0} '.format(video_filename)
+    if loopy:
+        cmd += '-filter_complex "[0]reverse[r];[0][r]concat" '
+    cmd += '{} && rm {}'.format(output_filename, video_filename)
+    # TODO: security lol
+    os.system(cmd)
+
 
 
 def draw_box(img, box, color=1.0):
