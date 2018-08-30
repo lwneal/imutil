@@ -14,6 +14,7 @@ setup(name='imutil',
     install_requires=[
         'numpy',
         'Pillow',
+        'scikit-image',
     ],
     package_data={
         'imutil': [

@@ -43,14 +43,13 @@ def show(
     pixels = reshape_ndarray_into_rgb(pixels)
     assert len(pixels.shape) == 3
 
+    # Normalize pixel intensities
+    if normalize:
+        pixels, min_val, max_val = normalize_color(pixels)
+
     # Resize image to desired shape
     if resize_height or resize_width:
         pixels = resize(pixels, resize_height, resize_width)
-
-    # Normalize pixel intensities
-    if normalize:
-        wtf = normalize_color(pixels)
-        pixels, min_val, max_val = normalize_color(pixels)
 
     # Draw a bounding box onto the image
     if box is not None:
@@ -211,24 +210,21 @@ def combine_images(images, stack_width=None):
 
 # pixels: np.array of shape (height, width, 3)
 def resize(pixels, resize_height, resize_width):
-    pixels, min_val, max_val = normalize_color(pixels)
     current_height, current_width, channels = pixels.shape
     if resize_height is None:
         resize_height = current_height
     if resize_width is None:
         resize_width = current_width
-    img = Image.fromarray((pixels * 255.).astype('uint8'))
-    img = img.resize((resize_width, resize_height))
-    pixels = np.array(img).astype(float) / 255.
-    pixels = min_val + (pixels * (max_val - min_val))
-    return pixels
+    from skimage.transform import resize
+    return resize(pixels, (resize_height, resize_width), mode='reflect', anti_aliasing=True)
 
 
-def normalize_color(pixels):
+def normalize_color(pixels, normalize_to=255.):
     min_val, max_val = pixels.min(), pixels.max()
     if min_val == max_val:
         return pixels, min_val, max_val
-    pixels = (pixels - min_val) * 255. / (max_val - min_val)
+    pixels = (pixels - min_val) / (max_val - min_val)
+    pixels *= normalize_to
     return pixels, min_val, max_val
 
 
