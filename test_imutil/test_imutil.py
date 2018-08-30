@@ -98,6 +98,16 @@ class TestImutil(unittest.TestCase):
         x = np.random.uniform(0, 1, size=(25, 100, 16, 16))
         assert imutil.reshape_ndarray_into_rgb(x).shape[-1] == 3
 
+    def test_reshape_normalize(self):
+        x = np.random.normal(size=(128,128))
+        # Reshaping the image should rescale it to 0,255 by default
+        reshaped = imutil.show(x, resize_height=480, resize_width=640, return_pixels=True)
+        assert reshaped.min() >= 0
+
+        # Reshaping with normalize=False should leave the scale unchanged
+        reshaped_denorm = imutil.show(x, resize_height=480, resize_width=640, normalize=False, return_pixels=True)
+        assert reshaped_denorm.min() < 0
+
 
 def cleanup():
     files = os.listdir('.')
