@@ -90,7 +90,7 @@ def show(
 # A general-purpose image loading function
 # Accepts numpy arrays, PIL Image objects, or jpgs
 # Numpy arrays can consist of multiple images, which will be collated
-def load(data, verbose=False):
+def load(data, resize_to=None, crop_to_box=None, verbose=False):
     # Munge data to allow input filenames, pixels, PIL images, etc
     if type(data) == type(np.array([])):
         pixels = data
@@ -108,6 +108,12 @@ def load(data, verbose=False):
         if verbose:
             print('imutil.load() handling unknown type {}'.format(type(data)))
         pixels = np.array(data)
+    # Resize image to desired shape
+    if resize_to:
+        height, width = resize_to
+        pixels = resize(pixels, height, width)
+    if crop_to_box:
+        raise NotImplementedError('imutil.load() crop_to_box')
     return pixels
 
 
