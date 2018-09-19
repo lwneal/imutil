@@ -222,7 +222,9 @@ def resize(pixels, resize_height, resize_width):
     if resize_width is None:
         resize_width = current_width
     from skimage.transform import resize
-    return resize(pixels, (resize_height, resize_width), mode='edge', anti_aliasing=True)
+    # Normalize to the acceptable range -1, 1
+    maxval = pixels.max()
+    return maxval * resize(pixels / maxval, (resize_height, resize_width), mode='edge', anti_aliasing=True)
 
 
 def normalize_color(pixels, normalize_to=255.):
