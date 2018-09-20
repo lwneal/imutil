@@ -28,6 +28,8 @@ def show(
         normalize=True,
         caption=None,
         font_size=16,
+        stack_width=None,
+        img_padding=0,
         return_pixels=False):
     # Handle special parameter combinations
     if video_filename:
@@ -40,7 +42,7 @@ def show(
     assert type(pixels) == np.ndarray
 
     # Convert ANY np.array to shape (height, width, 3)
-    pixels = reshape_ndarray_into_rgb(pixels)
+    pixels = reshape_ndarray_into_rgb(pixels, stack_width, img_padding)
     assert len(pixels.shape) == 3
 
     # Normalize pixel intensities
@@ -155,7 +157,7 @@ def decode_image_from_string(data):
 
 # pixels: np.array of ANY nonzero dimensionality
 # Output: np.array of shape (height, width, 3)
-def reshape_ndarray_into_rgb(pixels):
+def reshape_ndarray_into_rgb(pixels, stack_width=None, img_padding=0):
     # Special cases: low-dimensional inputs
     if len(pixels.shape) == 1:
         # One-dimensional input: convert to (1 x width x 1)
@@ -176,7 +178,7 @@ def reshape_ndarray_into_rgb(pixels):
 
     # Combine lists of images into a single tiled image
     while len(pixels.shape) > 3:
-        pixels = combine_images(pixels)
+        pixels = combine_images(pixels, stack_width=stack_width, img_padding=img_padding)
     return pixels
 
 
@@ -190,7 +192,7 @@ def reshape_ndarray_into_rgb(pixels):
 # Input (100 x 64 x 64) outputs (640 x 640)
 # Input (99 x 64 x 64) outputs (640 x 640) (with one blank space)
 # Input (100 x 64 x 64 x 17) outputs (640 x 640 x 17)
-def combine_images(images, stack_width=None):
+def combine_images(images, stack_width=None, img_padding=0):
     num_images = images.shape[0]
     input_height = images.shape[1]
     input_width = images.shape[2]
@@ -200,19 +202,20 @@ def combine_images(images, stack_width=None):
         stack_width = int(math.sqrt(num_images))
     stack_height = int(math.ceil(float(num_images) / stack_width))
 
-    output_width = stack_width * input_width
-    output_height = stack_height * input_height
+    output_width = stack_width * (input_width + img_padding)
+    output_height = stack_height * (input_height + img_padding)
 
     output_shape = (output_height, output_width) + optional_dimensions
-    image = np.zeros(output_shape, dtype=images.dtype)
+    image = np.ones(output_shape, dtype=images.dtype)
 
     for idx in range(num_images):
         i = int(idx / stack_width)
         j = idx % stack_width
-        a0, a1 = i * input_height, (i+1) * input_height
-        b0, b1 = j * input_width, (j+1) * input_width
-        image[a0:a1, b0:b1] = images[idx]
+        a0 = i * (input_height + img_padding) + img_padding//2
+        b0 = j * (input_width + img_padding) + img_padding//2
+        image[a0:a0 + input_height, b0:b0 + input_width] = images[idx]
     return image
+
 
 # pixels: np.array of shape (height, width, 3)
 def resize(pixels, resize_height, resize_width):
