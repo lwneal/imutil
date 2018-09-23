@@ -149,7 +149,7 @@ def decode_image_from_string(data):
         img = Image.open(BytesIO(data))
     else:
         # Input is a filename
-        img = Image.open(data)
+        img = Image.open(os.path.expanduser(data))
 
     img = img.convert('RGB')
     return np.array(img).astype(float)
