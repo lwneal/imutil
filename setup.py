@@ -8,6 +8,7 @@ setup(name='imutil',
     author='Larry Neal',
     author_email='nealla@lwneal.com',
     url="https://github.com/lwneal/imutil",
+    python_requires='>3',
     packages=[
         'imutil',
     ],
