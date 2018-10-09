@@ -313,15 +313,18 @@ def display_image_on_screen(filename):
 
 def encode_video(video_filename, loopy=False):
     output_filename = video_filename.replace('mjpeg', 'mp4')
-    print('Encoding video {}'.format(video_filename))
-    # TODO: Tokenize, use subprocess, validate filenames and "&& rm output" in Python
-    cmd = 'ffmpeg -hide_banner -nostdin -loglevel panic -y -i {0} '.format(video_filename)
+    print('Encoding MJPEG video {}'.format(video_filename))
+    cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', '-panic', '-y', '-i', video_filename]
     if loopy:
-        cmd += '-filter_complex "[0]reverse[r];[0][r]concat" '
-    cmd += '{} && rm {}'.format(output_filename, video_filename)
-    # TODO: security lol
-    os.system(cmd)
+        cmd += ['-filter_complex', '"[0]reverse[r];[0][r]concat"']
+    cmd += [output_filename]
+    subprocess.run(cmd)
 
+    if os.path.exists(output_filename):
+        print('Finished encoding video {}'.format(output_filename))
+        os.remove(video_filename)
+    else:
+        print('imutil warning: Failed to create video file {}, is ffmpeg installed?'.format(output_filename))
 
 
 def draw_box(img, box, color=1.0):
