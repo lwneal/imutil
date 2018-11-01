@@ -5,7 +5,6 @@ import time
 import subprocess
 import pathlib
 from distutils import spawn
-import collections
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
