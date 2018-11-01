@@ -1,6 +1,10 @@
 # imutil
 
-This is a simple library for displaying images.
+This is a simple library for displaying PIL images, Numpy arrays, PyTorch tensors,
+or other image-like objects.
+
+By default, images will be output as timestamped `.jpg` or `.png` files
+in the current directory.
 
 ## Usage
 
@@ -19,5 +23,6 @@ This is a simple library for displaying images.
 
 ## Displaying In-Terminal
 
-If you use iTerm2 with `imgcat`, set the environment variable `IMUTIL_SHOW=1` to display output images in your terminal.
+If you use iTerm2 with `imgcat`, set the environment variable `IMUTIL_SHOW=1` and all
+images output by `show()` will be displayed inline in your terminal.
 
