@@ -108,6 +108,11 @@ class TestImutil(unittest.TestCase):
         reshaped_denorm = imutil.show(x, resize_height=480, resize_width=640, normalize=False, return_pixels=True)
         assert reshaped_denorm.min() < 0
 
+    def test_datatype(self):
+        x = np.random.normal(size=(100,100,3))
+        imutil.show(x, filename='foobar.png')
+        y = imutil.load('foobar.png', resize_to=(640,480))
+
 
 def cleanup():
     files = os.listdir('.')
