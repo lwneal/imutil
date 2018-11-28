@@ -313,7 +313,7 @@ def display_image_on_screen(filename):
 def encode_video(video_filename, loopy=False):
     output_filename = video_filename.replace('mjpeg', 'mp4')
     print('Encoding MJPEG video {}'.format(video_filename))
-    cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', '-panic', '-y', '-i', video_filename]
+    cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'panic', '-y', '-i', video_filename]
     if loopy:
         cmd += ['-filter_complex', '"[0]reverse[r];[0][r]concat"']
     cmd += [output_filename]
