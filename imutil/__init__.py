@@ -319,8 +319,8 @@ def encode_video(video_filename, loopy=False):
     cmd += [output_filename]
     subprocess.run(cmd)
 
-    if os.path.exists(output_filename):
-        print('Finished encoding video {}'.format(output_filename))
+    if os.path.exists(video_filename):
+        print('Finished encoding video {}'.format(video_filename))
         os.remove(video_filename)
     else:
         print('imutil warning: Failed to create video file {}, is ffmpeg installed?'.format(output_filename))
@@ -347,6 +347,7 @@ class VideoMaker():
     def __init__(self, filename):
         self.filename = filename
         self.finished = False
+        self.frame_count = 0
         if self.filename.endswith('.mp4'):
             self.filename = self.filename[:-4]
         if not self.filename.endswith('mjpeg'):
@@ -358,6 +359,7 @@ class VideoMaker():
                     **kwargs):
         if self.finished:
             raise ValueError("Video is finished, cannot write frame")
+        self.frame_count += 1
         show(frame,
             video_filename=self.filename,
             font_size=font_size,
@@ -366,11 +368,14 @@ class VideoMaker():
 
     def finish(self):
         if not self.finished:
-            encode_video(self.filename, loopy=self.loopy)
+            try:
+                encode_video(self.filename, loopy=self.loopy)
+            except:
+                print('Error encoding video: is ffmpeg installed? Try sudo apt install ffmpeg')
         self.finished = True
 
     def __del__(self):
-        if not self.finished:
+        if self.frame_count > 0 and not self.finished:
             self.finish()
 
 
