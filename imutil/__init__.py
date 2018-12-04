@@ -319,11 +319,8 @@ def encode_video(video_filename, loopy=False):
     cmd += [output_filename]
     subprocess.run(cmd)
 
-    if os.path.exists(video_filename):
-        print('Finished encoding video {}'.format(video_filename))
-        os.remove(video_filename)
-    else:
-        print('imutil warning: Failed to create video file {}, is ffmpeg installed?'.format(output_filename))
+    print('Finished encoding video {}'.format(video_filename))
+    os.remove(video_filename)
 
 
 def draw_box(img, box, color=1.0):
@@ -367,7 +364,7 @@ class VideoMaker():
             **kwargs)
 
     def finish(self):
-        if not self.finished:
+        if self.frame_count > 0 and not self.finished:
             try:
                 encode_video(self.filename, loopy=self.loopy)
             except:
