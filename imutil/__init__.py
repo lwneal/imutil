@@ -310,10 +310,10 @@ def display_image_on_screen(filename):
     print('\033[4B')
 
 
-def encode_video(video_filename, loopy=False):
+def encode_video(video_filename, loopy=False, framerate=25):
     output_filename = video_filename.replace('mjpeg', 'mp4')
     print('Encoding MJPEG video {}'.format(video_filename))
-    cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'panic', '-y', '-i', video_filename]
+    cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'panic', '-y', '-framerate', str(framerate), '-i', video_filename]
     if loopy:
         cmd += ['-filter_complex', '"[0]reverse[r];[0][r]concat"']
     cmd += [output_filename]
@@ -341,10 +341,11 @@ def draw_box(img, box, color=1.0):
 class Video():
     loopy = False
 
-    def __init__(self, filename):
+    def __init__(self, filename, framerate=25):
         self.filename = filename
         self.finished = False
         self.frame_count = 0
+        self.framerate = framerate
         if self.filename.endswith('.mp4'):
             self.filename = self.filename[:-4]
         if not self.filename.endswith('mjpeg'):
@@ -366,7 +367,7 @@ class Video():
     def finish(self):
         if self.frame_count > 0 and not self.finished:
             try:
-                encode_video(self.filename, loopy=self.loopy)
+                encode_video(self.filename, loopy=self.loopy, framerate=self.framerate)
             except:
                 print('Error encoding video: is ffmpeg installed? Try sudo apt install ffmpeg')
         self.finished = True
