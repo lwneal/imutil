@@ -338,7 +338,7 @@ def draw_box(img, box, color=1.0):
     img[y1,x0:x1] = color
 
 
-class VideoMaker():
+class Video():
     loopy = False
 
     def __init__(self, filename):
@@ -375,8 +375,10 @@ class VideoMaker():
         if self.frame_count > 0 and not self.finished:
             self.finish()
 
+VideoMaker = Video
 
-class VideoLoop(VideoMaker):
+
+class VideoLoop(Video):
     loopy = True
 
 
