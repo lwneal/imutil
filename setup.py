@@ -3,9 +3,9 @@
 from setuptools import setup
 
 setup(name='imutil',
-    version='0.1.21',
-    description='Swiss army knife for displaying images',
-    long_description='Swiss army knife for converting and displaying numpy arrays, PyTorch tensors, and other image-like objects',
+    version='0.1.22',
+    description='Flexible utility for displaying images',
+    long_description='Flexible utility for converting and displaying numpy arrays, PyTorch tensors, and other image-like objects',
     author='Larry Neal',
     author_email='nealla@lwneal.com',
     url="https://github.com/lwneal/imutil",
