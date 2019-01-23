@@ -62,7 +62,7 @@ def show(
 
     # Set a default filename if one does not exist
     if filename is None:
-        filename = '{}.jpg'.format(int(time.time() * 1000))
+        filename = '{}.jpg'.format(int(time.time() * 1000 * 1000))
 
     # Write the file itself
     ensure_directory_exists(filename)
@@ -316,7 +316,7 @@ def encode_video(video_filename, loopy=False, framerate=25):
     cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'warning', '-y', '-framerate', str(framerate), '-i', video_filename]
     if loopy:
         cmd += ['-filter_complex', '"[0]reverse[r];[0][r]concat"']
-    cmd += [output_filename]
+    cmd += ['-pix_fmt', 'yuv420p', output_filename]
     subprocess.run(cmd)
 
     print('Finished encoding video {}'.format(video_filename))
