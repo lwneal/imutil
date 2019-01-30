@@ -260,27 +260,31 @@ def normalize_color(pixels, normalize_to=1.):
     return pixels, min_val, max_val
 
 
-# pixels: np.array of shape (height, width, 3)
+# pixels: np.array of shape (height, width, 3) range [0, 1]
 # caption: string, may contain newlines
 # font_size: integer
 # output: np.array of shape (height + caption_height, width, 3)
-def draw_text_caption(pixels, caption, font_size=12):
+def draw_text_caption(pixels, caption, font_size=12, top_pad=10):
     height, width, channels = pixels.shape
     font = ImageFont.truetype(get_font_file(), font_size)
     _, caption_height = font.getsize(caption)
 
     # Scale height to the nearest multiple of 4 for libx264 et al
-    new_height = ((height + caption_height + 1) // 4) * 4
+    new_height = ((height + caption_height + top_pad) // 4) * 4
 
+    # Create a new PIL.Image with room for the text
     new_pixels = np.zeros((new_height, width, channels), dtype=np.uint8)
-    new_pixels[-height:] = pixels
+    new_pixels[-height:] = pixels * 255
     img = Image.fromarray(new_pixels)
 
+    # Draw the text at the top, with some alpha blending
     draw = ImageDraw.Draw(img)
     textsize = draw.textsize(caption, font=font)
     draw.rectangle([(0, 0), textsize], fill=(0,0,0,128))
     draw.multiline_text((0,0), caption, font=font)
-    pixels = np.array(img)
+
+    # Convert back to numpy HWC RGB [0,1]
+    pixels = np.array(img) / 255.
     return pixels
 
 
@@ -392,21 +396,3 @@ class Video():
 
 class VideoLoop(Video):
     loopy = True
-
-
-# An easy but inefficient way to draw text onto an image
-def text(pixels, text, x=0, y=0, font_size=12, color=(0,0,0,255)):
-    from PIL import Image, ImageFont, ImageDraw
-    pixels = show(pixels, display=False, save=False, return_pixels=True)
-    pixels = (pixels * 255).astype(np.uint8)
-    # Hack: convert monochrome to RGB
-    if pixels.shape[-1] == 1:
-        pixels = np.stack([pixels.squeeze(), pixels.squeeze(), pixels.squeeze()], axis=-1)
-    img = Image.fromarray(pixels)
-    font_file = get_font_file()
-    font = ImageFont.truetype(font_file, font_size)
-    draw = ImageDraw.Draw(img)
-    textsize = draw.textsize(text, font=font)
-    draw.multiline_text((x,y), text, font=font, fill=color)
-    pixels = np.array(img)
-    return pixels
