@@ -36,21 +36,10 @@ def show(
     if resize_to:
         resize_width, resize_height = resize_to
 
-    # Convert ANY input into a np.array
-    pixels = load(data, verbose=verbose)
-    assert type(pixels) == np.ndarray
-
-    # Convert ANY np.array to shape (height, width, 3)
-    pixels = reshape_ndarray_into_rgb(pixels, stack_width, img_padding)
-    assert len(pixels.shape) == 3
-
-    # Normalize pixel intensities
-    if normalize:
-        pixels, min_val, max_val = normalize_color(pixels)
-
-    # Resize image to desired shape
-    if resize_height or resize_width:
-        pixels = resize(pixels, resize_height, resize_width)
+    # Flatten and convert to a single HWC RGB numpy array
+    pixels = get_pixels(data, resize_width, resize_height, normalize=normalize,
+                        stack_width=stack_width, img_padding=img_padding,
+                        verbose=verbose)
 
     # Draw a bounding box onto the image
     if box is not None:
@@ -86,6 +75,38 @@ def show(
 
     if return_pixels:
         return pixels
+
+
+# Converts an input object or iterable to a numpy float array
+# Returned shape will always be (height, width, 3)
+# Returned values will all be in the range [0, 1]
+def get_pixels(
+        data,
+        resize_width=None,
+        resize_height=None,
+        normalize=True,
+        stack_width=None,
+        img_padding=0,
+        verbose=False,
+    ):
+    # Convert ANY input into a np.array
+    pixels = load(data, verbose=verbose)
+    assert type(pixels) == np.ndarray
+
+    # Convert ANY np.array to shape (height, width, 3)
+    pixels = reshape_ndarray_into_rgb(pixels, stack_width, img_padding)
+    height, width, channels = pixels.shape
+    assert height > 0 and width > 0 and channels == 3
+
+    # Normalize pixel intensities
+    if normalize:
+        pixels, min_val, max_val = normalize_color(pixels)
+
+    # Resize image to desired shape
+    if resize_height or resize_width:
+        pixels = resize(pixels, resize_height, resize_width)
+
+    return pixels
 
 
 # A general-purpose image loading function
@@ -229,7 +250,7 @@ def resize(pixels, resize_height, resize_width):
     return maxval * resize(pixels / maxval, (resize_height, resize_width), mode='reflect', anti_aliasing=True)
 
 
-def normalize_color(pixels, normalize_to=255.):
+def normalize_color(pixels, normalize_to=1.):
     min_val, max_val = pixels.min(), pixels.max()
     if min_val == max_val:
         return pixels, min_val, max_val
@@ -279,17 +300,6 @@ def encode_image(pixels, img_format='JPEG'):
     fp = BytesIO()
     img.save(fp, format=img_format)
     return fp.getvalue()
-
-
-figure = []
-def add_to_figure(data):
-    figure.append(data)
-
-
-def show_figure(**kwargs):
-    global figure
-    show(np.array(figure), **kwargs)
-    figure = []
 
 
 def ensure_directory_exists(filename):
@@ -375,8 +385,6 @@ class Video():
     def __del__(self):
         if self.frame_count > 0 and not self.finished:
             self.finish()
-
-VideoMaker = Video
 
 
 class VideoLoop(Video):
