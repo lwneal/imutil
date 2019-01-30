@@ -57,7 +57,7 @@ def show(
     ensure_directory_exists(filename)
     with open(filename, 'wb') as fp:
         save_format = 'PNG' if filename.endswith('.png') else 'JPEG'
-        fp.write(encode_image(pixels, img_format=save_format))
+        fp.write(encode_image(pixels, img_format=save_format, is_normalized=normalize))
         fp.flush()
 
     if display:
@@ -68,7 +68,7 @@ def show(
     if video_filename:
         ensure_directory_exists(video_filename)
         with open(video_filename, 'ab') as fp:
-            fp.write(encode_image(pixels, img_format='JPEG'))
+            fp.write(encode_image(pixels, img_format='JPEG', is_normalized=normalize))
 
     if not save:
         os.remove(filename)
@@ -94,7 +94,8 @@ def get_pixels(
     assert type(pixels) == np.ndarray
 
     # Convert ANY np.array to shape (height, width, 3)
-    pixels = reshape_ndarray_into_rgb(pixels, stack_width, img_padding)
+    bg_color = 1 if normalize else 255
+    pixels = reshape_ndarray_into_rgb(pixels, stack_width, img_padding, bg_color=bg_color)
     height, width, channels = pixels.shape
     assert height > 0 and width > 0 and channels == 3
 
@@ -177,7 +178,7 @@ def decode_image_from_string(data):
 
 # pixels: np.array of ANY nonzero dimensionality
 # Output: np.array of shape (height, width, 3)
-def reshape_ndarray_into_rgb(pixels, stack_width=None, img_padding=0):
+def reshape_ndarray_into_rgb(pixels, stack_width=None, img_padding=0, bg_color=255.):
     # Special cases: low-dimensional inputs
     if len(pixels.shape) == 1:
         # One-dimensional input: convert to (1 x width x 1)
@@ -198,7 +199,7 @@ def reshape_ndarray_into_rgb(pixels, stack_width=None, img_padding=0):
 
     # Combine lists of images into a single tiled image
     while len(pixels.shape) > 3:
-        pixels = combine_images(pixels, stack_width=stack_width, img_padding=img_padding)
+        pixels = combine_images(pixels, stack_width=stack_width, img_padding=img_padding, bg_color=bg_color)
     return pixels
 
 
@@ -212,7 +213,7 @@ def reshape_ndarray_into_rgb(pixels, stack_width=None, img_padding=0):
 # Input (100 x 64 x 64) outputs (640 x 640)
 # Input (99 x 64 x 64) outputs (640 x 640) (with one blank space)
 # Input (100 x 64 x 64 x 17) outputs (640 x 640 x 17)
-def combine_images(images, stack_width=None, img_padding=0):
+def combine_images(images, stack_width=None, img_padding=0, bg_color=255):
     num_images = images.shape[0]
     input_height = images.shape[1]
     input_width = images.shape[2]
@@ -226,7 +227,7 @@ def combine_images(images, stack_width=None, img_padding=0):
     output_height = stack_height * (input_height + img_padding)
 
     output_shape = (output_height, output_width) + optional_dimensions
-    image = np.ones(output_shape, dtype=images.dtype)
+    image = np.full(output_shape, bg_color, dtype=images.dtype)
 
     for idx in range(num_images):
         i = int(idx / stack_width)
@@ -290,16 +291,18 @@ def get_font_file():
 
 # Input: Numpy array containing one or more images
 # Output: JPG encoded image bytes (or an alternative format if specified)
-def encode_image(pixels, img_format='JPEG'):
-    while len(pixels.shape) > 3:
-        pixels = combine_images(pixels)
-    # Convert to RGB to avoid "Cannot handle this data type"
-    if pixels.shape[-1] < 3:
-        pixels = np.repeat(pixels, 3, axis=-1)
-    img = Image.fromarray(pixels.astype(np.uint8))
-    fp = BytesIO()
-    img.save(fp, format=img_format)
-    return fp.getvalue()
+def encode_image(pixels, img_format='JPEG', is_normalized=False):
+    # If this is a normalized [0, 1] image, convert to [0, 255]
+    # Otherwise, assume the image is already [0, 255]
+    if is_normalized:
+        pixels *= 255
+    pixels = pixels.astype(np.uint8)
+
+    with BytesIO() as fp:
+        img = Image.fromarray(pixels.astype(np.uint8))
+        fp = BytesIO()
+        img.save(fp, format=img_format)
+        return fp.getvalue()
 
 
 def ensure_directory_exists(filename):
