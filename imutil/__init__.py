@@ -332,7 +332,7 @@ def encode_video(video_filename, loopy=False, framerate=25):
     print('Encoding MJPEG video {} framerate={} loopy={}'.format(video_filename, framerate, loopy))
     cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'warning', '-y', '-framerate', str(framerate), '-i', video_filename]
     if loopy:
-        cmd += ['-filter_complex', '"[0]reverse[r];[0][r]concat"']
+        cmd += ['-filter_complex', '[0]reverse[r];[0][r]concat']
     cmd += ['-pix_fmt', 'yuv420p', output_filename]
     subprocess.run(cmd)
 
@@ -367,6 +367,9 @@ class Video():
             self.filename = self.filename[:-4]
         if not self.filename.endswith('mjpeg'):
             self.filename = self.filename + '.mjpeg'
+
+    def __call__(self, *args, **kwargs):
+        return self.write_frame(*args, **kwargs)
 
     def write_frame(self,
                     frame,
