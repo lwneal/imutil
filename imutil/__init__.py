@@ -40,6 +40,9 @@ def show(
     pixels = get_pixels(data, resize_width, resize_height, normalize=normalize,
                         stack_width=stack_width, img_padding=img_padding,
                         verbose=verbose)
+    if verbose:
+        print('Converted input to numpy array shape {} min {} max {}'.format(
+            pixels.shape, pixels.min(), pixels.max()))
 
     # Draw a bounding box onto the image
     if box is not None:
@@ -47,11 +50,18 @@ def show(
 
     # Draw a text caption above the image
     if caption is not None:
-        pixels = draw_text_caption(pixels, caption, font_size)
+        if verbose:
+            print('Drawing caption onto pixels shape {}'.format(pixels.shape))
+        pixels = draw_text_caption(pixels, caption, font_size, is_normalized=normalize)
+        if verbose:
+            print('After drawing caption, pixels shape {} min {} max {}'.format(
+                pixels.shape, pixels.min(), pixels.max()))
 
     # Set a default filename if one does not exist
     if filename is None:
         filename = '{}.jpg'.format(int(time.time() * 1000 * 1000))
+    if verbose:
+        print('Writing pixels to file {}'.format(filename))
 
     # Write the file itself
     ensure_directory_exists(filename)
@@ -95,16 +105,25 @@ def get_pixels(
 
     # Convert ANY np.array to shape (height, width, 3)
     bg_color = 1 if normalize else 255
+    if verbose:
+        print('Reshaping numpy array shape: {}'.format(pixels.shape))
     pixels = reshape_ndarray_into_rgb(pixels, stack_width, img_padding, bg_color=bg_color)
+    if verbose:
+        print('Generated RGB numpy array shape: {}'.format(pixels.shape))
     height, width, channels = pixels.shape
     assert height > 0 and width > 0 and channels == 3
 
     # Normalize pixel intensities
     if normalize:
         pixels, min_val, max_val = normalize_color(pixels)
+        if verbose:
+            print('Input pixel value range: {} to {}'.format(min_val, max_val))
 
     # Resize image to desired shape
     if resize_height or resize_width:
+        if verbose:
+            print('Resizing numpy array from shape {} to width/height {}'.format(
+                pixels.shape(), resize_width, resize_height))
         pixels = resize(pixels, resize_height, resize_width)
 
     return pixels
@@ -264,7 +283,9 @@ def normalize_color(pixels, normalize_to=1.):
 # caption: string, may contain newlines
 # font_size: integer
 # output: np.array of shape (height + caption_height, width, 3)
-def draw_text_caption(pixels, caption, font_size=12, top_pad=10):
+def draw_text_caption(pixels, caption, font_size=12, top_pad=10, is_normalized=True):
+    color_scale = 255 if is_normalized else 1
+
     height, width, channels = pixels.shape
     font = ImageFont.truetype(get_font_file(), font_size)
     _, caption_height = font.getsize(caption)
@@ -274,7 +295,7 @@ def draw_text_caption(pixels, caption, font_size=12, top_pad=10):
 
     # Create a new PIL.Image with room for the text
     new_pixels = np.zeros((new_height, width, channels), dtype=np.uint8)
-    new_pixels[-height:] = pixels * 255
+    new_pixels[-height:] = pixels * color_scale
     img = Image.fromarray(new_pixels)
 
     # Draw the text at the top, with some alpha blending
@@ -284,7 +305,7 @@ def draw_text_caption(pixels, caption, font_size=12, top_pad=10):
     draw.multiline_text((0,0), caption, font=font)
 
     # Convert back to numpy HWC RGB [0,1]
-    pixels = np.array(img) / 255.
+    pixels = np.array(img) / color_scale
     return pixels
 
 
@@ -327,16 +348,22 @@ def display_image_on_screen(filename):
     print('\033[4B')
 
 
-def encode_video(video_filename, loopy=False, framerate=25):
+def encode_video(video_filename, loopy=False, framerate=25, verbose=False):
     output_filename = video_filename.replace('mjpeg', 'mp4')
-    print('Encoding MJPEG video {} framerate={} loopy={}'.format(video_filename, framerate, loopy))
+    if verbose:
+        print('Encoding MJPEG video {} framerate={} loopy={}'.format(video_filename, framerate, loopy))
+
     cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'warning', '-y', '-framerate', str(framerate), '-i', video_filename]
     if loopy:
         cmd += ['-filter_complex', '[0]reverse[r];[0][r]concat']
     cmd += ['-pix_fmt', 'yuv420p', output_filename]
+
+    if verbose:
+        print('Running ffmpeg invocation: {}'.format(cmd))
     subprocess.run(cmd)
 
-    print('Finished encoding video {}'.format(video_filename))
+    if verbose:
+        print('Finished encoding; removing temporary file {}'.format(video_filename))
     os.remove(video_filename)
 
 
@@ -358,11 +385,12 @@ def draw_box(img, box, color=1.0):
 class Video():
     loopy = False
 
-    def __init__(self, filename, framerate=25):
+    def __init__(self, filename, framerate=25, verbose=True):
         self.filename = filename
+        self.framerate = framerate
+        self.verbose = verbose
         self.finished = False
         self.frame_count = 0
-        self.framerate = framerate
         if self.filename.endswith('.mp4'):
             self.filename = self.filename[:-4]
         if not self.filename.endswith('mjpeg'):
@@ -387,7 +415,7 @@ class Video():
     def finish(self):
         if self.frame_count > 0 and not self.finished:
             try:
-                encode_video(self.filename, loopy=self.loopy, framerate=self.framerate)
+                encode_video(self.filename, loopy=self.loopy, framerate=self.framerate, verbose=self.verbose)
             except:
                 print('Error encoding video: is ffmpeg installed? Try sudo apt install ffmpeg')
         self.finished = True
