@@ -423,7 +423,7 @@ class Video():
     def __del__(self):
         if self.frame_count > 0 and not self.finished:
             self.finish()
-
+VideoMaker = Video
 
 class VideoLoop(Video):
     loopy = True

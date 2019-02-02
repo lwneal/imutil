@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='imutil',
-    version='0.2.1',
+    version='0.2.2',
     description='Flexible utility for displaying images',
     long_description='Flexible utility for converting and displaying numpy arrays, PyTorch tensors, and other image-like objects',
     author='Larry Neal',
