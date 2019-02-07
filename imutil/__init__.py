@@ -68,6 +68,8 @@ def show(
     with open(filename, 'wb') as fp:
         save_format = 'PNG' if filename.endswith('.png') else 'JPEG'
         fp.write(encode_image(pixels, img_format=save_format, is_normalized=normalize))
+        if verbose:
+            print('Encoded pixels shape {} min {} max {}'.format(pixels.shape, pixels.min(), pixels.max()))
         fp.flush()
 
     if display:
@@ -76,11 +78,17 @@ def show(
     # The MJPEG format is a concatenation of JPEG files, and can be converted
     # into another format with eg. ffmpeg -i frames.mjpeg output.mp4
     if video_filename:
+        if verbose:
+            print('Concatenating pixels to video file {}'.format(video_filename))
         ensure_directory_exists(video_filename)
         with open(video_filename, 'ab') as fp:
             fp.write(encode_image(pixels, img_format='JPEG', is_normalized=normalize))
+        if verbose:
+            print('Wrote pixels shape {} min {} max {}'.format(pixels.shape, pixels.min(), pixels.max()))
 
     if not save:
+        if verbose:
+            print('Removing temporary file {}'.format(filename))
         os.remove(filename)
 
     if return_pixels:
@@ -320,7 +328,11 @@ def encode_image(pixels, img_format='JPEG', is_normalized=False):
     # If this is a normalized [0, 1] image, convert to [0, 255]
     # Otherwise, assume the image is already [0, 255]
     if is_normalized:
-        pixels *= 255
+        pixels = pixels * 255
+
+    if pixels.min() < 0 or pixels.max() > 255:
+        print('Warning: Input pixels outside of valid range [0, 255]')
+
     pixels = pixels.astype(np.uint8)
 
     with BytesIO() as fp:
