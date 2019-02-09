@@ -360,7 +360,7 @@ def display_image_on_screen(filename):
     print('\033[4B')
 
 
-def encode_video(video_filename, loopy=False, framerate=25, verbose=False):
+def encode_video(video_filename, loopy=False, framerate=25, crf=19, verbose=False):
     output_filename = video_filename.replace('mjpeg', 'mp4')
     if verbose:
         print('Encoding MJPEG video {} framerate={} loopy={}'.format(video_filename, framerate, loopy))
@@ -368,6 +368,7 @@ def encode_video(video_filename, loopy=False, framerate=25, verbose=False):
     cmd = ['ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'warning', '-y', '-framerate', str(framerate), '-i', video_filename]
     if loopy:
         cmd += ['-filter_complex', '[0]reverse[r];[0][r]concat']
+    cmd += ['-crf', str(crf)]
     cmd += ['-pix_fmt', 'yuv420p', output_filename]
 
     if verbose:
@@ -397,11 +398,12 @@ def draw_box(img, box, color=1.0):
 class Video():
     loopy = False
 
-    def __init__(self, filename, framerate=25, verbose=True):
+    def __init__(self, filename, framerate=25, crf=19, verbose=True):
         self.filename = filename
         self.framerate = framerate
         self.verbose = verbose
         self.finished = False
+        self.crf = crf
         self.frame_count = 0
         if self.filename.endswith('.mp4'):
             self.filename = self.filename[:-4]
@@ -427,7 +429,11 @@ class Video():
     def finish(self):
         if self.frame_count > 0 and not self.finished:
             try:
-                encode_video(self.filename, loopy=self.loopy, framerate=self.framerate, verbose=self.verbose)
+                encode_video(self.filename,
+                             loopy=self.loopy,
+                             framerate=self.framerate,
+                             crf=self.crf,
+                             verbose=self.verbose)
             except:
                 print('Error encoding video: is ffmpeg installed? Try sudo apt install ffmpeg')
         self.finished = True
