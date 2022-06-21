@@ -193,13 +193,25 @@ def convert_pytorch_tensor_to_pixels(data):
 # Output: Numpy array containing images
 def decode_image_from_string(data):
     if data.startswith('\xFF\xD8'):
-        # Input is a JPG buffer
+        # Input is probably a JPG buffer
         img = Image.open(BytesIO(data))
     else:
-        # Input is a filename
+        # Input is probably a filename
         img = Image.open(os.path.expanduser(data))
-
-    img = img.convert('RGB')
+    if img.mode == 'I':
+        minval, maxval = img.getextrema()
+        if minval < 0:
+            print('Warning: clamping negative integer pixels')
+        if maxval < 256:
+            # This is probably an 8-bit image, we can convert to RGB losslessly
+            img = img.convert('RGB')
+        elif maxval < 2 ** 16:
+            # This is probably a 16-bit monochrome image
+            x = np.array(img).astype(float)
+            x *= (1.0 / 256)
+            img = np.stack([x, x, x], axis=-1)
+    else:
+        img = img.convert('RGB')
     return np.array(img).astype(float)
 
 
