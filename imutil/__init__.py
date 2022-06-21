@@ -351,13 +351,21 @@ def ensure_directory_exists(filename):
 
 
 def display_image_on_screen(filename):
-    should_show = os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat')
-    if not should_show:
-        return
-    print('\n' * 4)
-    print('\033[4F')
-    subprocess.check_call(['imgcat', filename])
-    print('\033[4B')
+    method = None
+    if os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat'):
+        method = 'iterm2-imgcat'
+    elif spawn.find_executable('xdg-open'):
+        method = 'xdg-open'
+
+    if method == 'iterm2-imgcat':
+        print('\n' * 4)
+        print('\033[4F')
+        subprocess.check_call(['imgcat', filename])
+        print('\033[4B')
+    elif method == 'xdg-open':
+        subprocess.check_call(['xdg-open', filename])
+    else:
+        print('Image viewable at {}'.format(filename))
 
 
 def encode_video(video_filename, loopy=False, framerate=25, crf=19, verbose=False):
