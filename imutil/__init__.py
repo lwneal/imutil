@@ -423,13 +423,14 @@ def draw_box(img, box, color=1.0):
 class Video():
     loopy = False
 
-    def __init__(self, filename, framerate=25, crf=19, verbose=True):
+    def __init__(self, filename, framerate=25, crf=19, verbose=True, loopy=False):
         self.filename = filename
         self.framerate = framerate
         self.verbose = verbose
         self.finished = False
         self.crf = crf
         self.frame_count = 0
+        self.loopy = loopy
         if self.filename.endswith('.mp4'):
             self.filename = self.filename[:-4]
         if not self.filename.endswith('mjpeg'):
@@ -466,6 +467,13 @@ class Video():
     def __del__(self):
         if self.frame_count > 0 and not self.finished:
             self.finish()
+    # Aliases
+    add_frame = write_frame
+    add = write_frame
+    write = write_frame
+    append = write_frame
+
+# More aliases
 VideoMaker = Video
 
 class VideoLoop(Video):
