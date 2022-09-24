@@ -167,6 +167,11 @@ def load(data, resize_to=None, crop_to_box=None, verbose=False):
     return pixels
 
 
+# Convert the input data to an image and save it to the given filename
+def save(data, filename, **kwargs):
+    return show(data, display=false, filename=filename, **kwargs)
+
+
 def convert_fig_to_pixels(matplot_fig):
     # Hack: Write entire figure to file, then re-load it
     # Could be done faster in memory
