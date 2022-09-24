@@ -169,7 +169,7 @@ def load(data, resize_to=None, crop_to_box=None, verbose=False):
 
 # Convert the input data to an image and save it to the given filename
 def save(data, filename, **kwargs):
-    return show(data, display=false, filename=filename, **kwargs)
+    return show(data, display=False, filename=filename, **kwargs)
 
 
 def convert_fig_to_pixels(matplot_fig):
