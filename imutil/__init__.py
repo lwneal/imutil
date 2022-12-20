@@ -4,7 +4,7 @@ import tempfile
 import time
 import subprocess
 import pathlib
-from distutils import spawn
+import shutil
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
@@ -369,9 +369,9 @@ def ensure_directory_exists(filename):
 
 def display_image_on_screen(filename):
     method = None
-    if os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and spawn.find_executable('imgcat'):
+    if os.environ.get('IMUTIL_SHOW') and len(os.environ['IMUTIL_SHOW']) > 0 and shutil.which('imgcat'):
         method = 'iterm2-imgcat'
-    elif spawn.find_executable('xdg-open'):
+    elif shutil.which('xdg-open'):
         method = 'xdg-open'
 
     if method == 'iterm2-imgcat':
